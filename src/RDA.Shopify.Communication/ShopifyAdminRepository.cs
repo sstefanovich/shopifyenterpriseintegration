@@ -12,8 +12,8 @@ namespace RDA.Shopify.Communication
         private readonly GraphQLHttpClient _graphClient;
 
         //Note, these credentials are not valid, substitute your own
-        private const string apiKey = "69a7c68590d2b75eaffefed03c84e800";
-        private const string apiPassword = "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";
+        private const string apiKey = "XXXX";
+        private const string apiPassword = "XXXX";
         private const string shopName = "steverdadev";
 
         public ShopifyAdminRepository()
@@ -21,7 +21,7 @@ namespace RDA.Shopify.Communication
             _graphClient = new GraphQLHttpClient($"https://{shopName}.myshopify.com/admin/api/2020-04/graphql.json", new SystemTextJsonSerializer());
         }
 
-        public async Task<TValue> ExecuteQuery<TValue>(string query)
+        public async Task<TValue> ExecuteQuery<TValue>(string query, object variables = null)
         {
             var byteArray = Encoding.ASCII.GetBytes($"{apiKey}:{apiPassword}");
             _graphClient.HttpClient.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Basic", Convert.ToBase64String(byteArray));
@@ -30,13 +30,15 @@ namespace RDA.Shopify.Communication
             {
                 Query = query
             };
+
+            request.Variables = variables ?? null;
 
             var response = await _graphClient.SendQueryAsync<TValue>(request);
 
             return response.Data;
         }
 
-        public async Task<TValue> ExecuteMutation<TValue>(string query)
+        public async Task<TValue> ExecuteMutation<TValue>(string query, object variables = null)
         {
             var byteArray = Encoding.ASCII.GetBytes($"{apiKey}:{apiPassword}");
             _graphClient.HttpClient.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Basic", Convert.ToBase64String(byteArray));
@@ -45,6 +47,8 @@ namespace RDA.Shopify.Communication
             {
                 Query = query
             };
+
+            request.Variables = variables ?? null;
 
             var response = await _graphClient.SendMutationAsync<TValue>(request);
 
