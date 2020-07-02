@@ -11,6 +11,7 @@ namespace RDA.Shopify.Communication
     {
         private readonly GraphQLHttpClient _graphClient;
 
+        //Note, these credentials are not valid, substitute your own
         private const string apiKey = "69a7c68590d2b75eaffefed03c84e800";
         private const string apiPassword = "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";
         private const string shopName = "steverdadev";
