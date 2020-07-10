@@ -15,6 +15,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\RDA.Shopify.Communication\RDA.Shopify.Communication.csproj" />
+    <ProjectReference Include="..\RDA.Shopify.CSVImport\RDA.Shopify.CSVImport.csproj" />
     <ProjectReference Include="..\RDA.Shopify.Entities\RDA.Shopify.Entities.csproj" />
   </ItemGroup>
 
