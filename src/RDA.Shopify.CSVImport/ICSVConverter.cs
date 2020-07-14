@@ -6,6 +6,6 @@ namespace RDA.Shopify.CSVImport
 {
     interface ICSVConverter
     {
-        string Convert(ProductInventory inventory);
+        (string products, string inventory) Convert(ProductInventory inventory);
     }
 }

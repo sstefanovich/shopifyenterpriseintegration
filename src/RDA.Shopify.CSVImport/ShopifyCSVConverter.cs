@@ -1,42 +1,160 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Collections.Specialized;
+using System.Linq;
 using System.Text;
 
 namespace RDA.Shopify.CSVImport
 {
     public class ShopifyCSVConverter : ICSVConverter
     {
-        public string Convert(ProductInventory inventory)
+        public (string products, string inventory) Convert(ProductInventory inventory)
         {
-            var csvResult = new StringBuilder();
+            var productResult = new StringBuilder();
+            var inventoryResult = new StringBuilder();
+            var locationNames = new List<string>();
 
             //Add the headers first, they must appear in this order
-            csvResult.AppendLine(@"Handle,Title,Body (HTML),Vendor,Type,Tags,Published,Option1 Name,Option1 Value,Option2 Name,Option2 Value,Option3 Name,Option3 Value,Variant SKU,Variant Grams,Variant Inventory Tracker,Variant Inventory Qty,Variant Inventory Policy,Variant Fulfillment Service,Variant Price,Variant Compare At Price,Variant Requires Shipping,Variant Taxable,Variant Barcode,Image Src,Image Position,Image Alt Text,Gift Card,SEO Title,SEO Description,Google Shopping / Google Product Category,Google Shopping / Gender,Google Shopping / Age Group,Google Shopping / MPN,Google Shopping / AdWords Grouping,Google Shopping / AdWords Labels,Google Shopping / Condition,Google Shopping / Custom Product,Google Shopping / Custom Label 0,Google Shopping / Custom Label 1,Google Shopping / Custom Label 2,Google Shopping / Custom Label 3,Google Shopping / Custom Label 4,Variant Image,Variant Weight Unit,Variant Tax Code,Cost per item");
+            productResult.AppendLine(@"Handle,Title,Body (HTML),Vendor,Type,Tags,Published,Option1 Name,Option1 Value,Option2 Name,Option2 Value,Option3 Name,Option3 Value,Variant SKU,Variant Grams,Variant Inventory Tracker,Variant Inventory Qty,Variant Inventory Policy,Variant Fulfillment Service,Variant Price,Variant Compare At Price,Variant Requires Shipping,Variant Taxable,Variant Barcode,Image Src,Image Position,Image Alt Text,Gift Card,SEO Title,SEO Description,Google Shopping / Google Product Category,Google Shopping / Gender,Google Shopping / Age Group,Google Shopping / MPN,Google Shopping / AdWords Grouping,Google Shopping / AdWords Labels,Google Shopping / Condition,Google Shopping / Custom Product,Google Shopping / Custom Label 0,Google Shopping / Custom Label 1,Google Shopping / Custom Label 2,Google Shopping / Custom Label 3,Google Shopping / Custom Label 4,Variant Image,Variant Weight Unit,Variant Tax Code,Cost per item");
 
-            foreach(var product in inventory.Products)
+            //If any product or variant has inventory locations, then they all should
+            bool trackLocationInventory = inventory.Products.Where(p => p.LocationInventories.Count > 0).Any() || inventory.Products.Where(p => p.Variants.Where(v => v.LocationInventories.Count > 0).Count() > 0).Any();
+
+            foreach (var product in inventory.Products)
             {
-                csvResult.AppendLine(BuildProduct(product));
+                productResult.AppendLine(BuildProduct(product, trackLocationInventory));
 
-                for (int imageIndex = 1; imageIndex < product.Images.Count; imageIndex++)
+                foreach (var locationInventory in product.LocationInventories)
                 {
-                    csvResult.AppendLine(BuildImage(product, product.Images[imageIndex], imageIndex + 1));
+                    if (!locationNames.Contains(locationInventory.LocationName))
+                        locationNames.Add(locationInventory.LocationName);
                 }
 
-                foreach(var variant in product.Variants)
+                //The first image goes on the main product row then each additional gets a row
+                for (int imageIndex = 1; imageIndex < product.Images.Count; imageIndex++)
                 {
-                    csvResult.AppendLine(BuildVariant(product, variant));
+                    productResult.AppendLine(BuildImage(product, product.Images[imageIndex], imageIndex + 1));
+                }
+
+                foreach (var variant in product.Variants)
+                {
+                    foreach (var locationInventory in product.LocationInventories)
+                    {
+                        if (!locationNames.Contains(locationInventory.LocationName))
+                            locationNames.Add(locationInventory.LocationName);
+                    }
+
+                    productResult.AppendLine(BuildVariant(product, variant, trackLocationInventory));
                 }
             }
 
-            return csvResult.ToString();
+            if (trackLocationInventory && locationNames.Count > 0)
+            {
+                //We need to get all the location names, each becomes a column
+                inventoryResult.AppendLine($@"Handle,Title,Option1 Name,Option1 Value,Option2 Name,Option2 Value,Option3 Name,Option3 Value{string.Join(",", locationNames)}");
+
+                foreach (var product in inventory.Products)
+                {
+                    inventoryResult.AppendLine(BuildInventory(product, null, locationNames));
+
+                    foreach (var variant in product.Variants)
+                    {
+                       inventoryResult.AppendLine(BuildInventory(product, variant, locationNames));
+                    }
+                }
+            }
+
+            return (productResult.ToString(), inventoryResult.ToString());
         }
 
-        private string BuildProduct(Product product)
+        private string BuildInventory(Product product, Variant variant, List<string> locationNames)
+        {
+            var inventoryRecord = new StringBuilder();
+            List<LocationInventory> inventories = null;
+
+            inventoryRecord.Append(product.Handle);
+            inventoryRecord.Append(", ");
+
+            inventoryRecord.Append(product.Title);
+            inventoryRecord.Append(",");
+
+            if (variant == null)
+            {
+                inventories = product.LocationInventories;
+
+                inventoryRecord.Append(product.Option1.Name);
+                inventoryRecord.Append(",");
+
+                inventoryRecord.Append(product.Option1.Value);
+                inventoryRecord.Append(",");
+
+                inventoryRecord.Append(product.Option2.Name ?? string.Empty);
+                inventoryRecord.Append(",");
+
+                inventoryRecord.Append(product.Option2.Value ?? string.Empty);
+                inventoryRecord.Append(",");
+
+                inventoryRecord.Append(product.Option3.Name ?? string.Empty);
+                inventoryRecord.Append(",");
+
+                inventoryRecord.Append(product.Option3.Value ?? string.Empty);
+                inventoryRecord.Append(",");
+
+                inventoryRecord.Append(product.SKU ?? string.Empty);
+                inventoryRecord.Append(",");
+            }
+            else
+            {
+                inventories = variant.LocationInventories;
+
+                inventoryRecord.Append(variant.Option1.Name);
+                inventoryRecord.Append(",");
+
+                inventoryRecord.Append(variant.Option1.Value);
+                inventoryRecord.Append(",");
+
+                inventoryRecord.Append(variant.Option2.Name ?? string.Empty);
+                inventoryRecord.Append(",");
+
+                inventoryRecord.Append(variant.Option2.Value ?? string.Empty);
+                inventoryRecord.Append(",");
+
+                inventoryRecord.Append(variant.Option3.Name ?? string.Empty);
+                inventoryRecord.Append(",");
+
+                inventoryRecord.Append(variant.Option3.Value ?? string.Empty);
+                inventoryRecord.Append(",");
+
+                inventoryRecord.Append(variant.SKU ?? string.Empty);
+                
+            }
+
+            foreach(var locationName in locationNames)
+            {
+                var inventory = inventories.Where(i => i.LocationName.Equals(locationName)).FirstOrDefault();
+
+                inventoryRecord.Append(",");
+
+                if (inventory == null || ! inventory.IsStockedAtLocation)
+                {
+                    inventoryRecord.Append("Not stocked");
+                }
+                else
+                {
+                    inventoryRecord.Append(inventory.InventoryAmount.ToString());
+                }
+
+            }
+
+            return inventoryRecord.ToString();
+        }
+
+        private string BuildProduct(Product product, bool trackLocationInventory)
         {
             var productRecord = new StringBuilder();
 
             productRecord.Append(product.Handle);
-            productRecord.Append(",");
+            productRecord.Append(", ");
 
             productRecord.Append(product.Title);
             productRecord.Append(",");
@@ -83,8 +201,11 @@ namespace RDA.Shopify.CSVImport
             productRecord.Append(product.InventoryTracker);
             productRecord.Append(",");
 
-            productRecord.Append(product.InventoryQuantity.ToString());
-            productRecord.Append(",");
+            if (!trackLocationInventory)
+            {
+                productRecord.Append(product.InventoryQuantity.ToString());
+                productRecord.Append(",");
+            }
 
             productRecord.Append(product.InventoryPolicy);
             productRecord.Append(",");
@@ -183,7 +304,7 @@ namespace RDA.Shopify.CSVImport
             var imageRecord = new StringBuilder();
 
             imageRecord.Append(product.Handle);
-            imageRecord.Append(",,,,,,,,,,,,,,,,,,,,,,,");
+            imageRecord.Append(",,,,,,,,,,,,,,,,,,,,,,,,");
 
 
             imageRecord.Append(image.Source);
@@ -195,91 +316,82 @@ namespace RDA.Shopify.CSVImport
             imageRecord.Append(image.AltText ?? string.Empty);
             imageRecord.Append(",,,,,,,,,,,,,,,,,,,,");
 
-            
-
             return imageRecord.ToString();
         }
 
-        private string BuildVariant(Product product, Variant variant)
+        private string BuildVariant(Product product, Variant variant, bool trackLocationInventory)
         {
             var variantRecord = new StringBuilder();
 
             variantRecord.Append(product.Handle);
             variantRecord.Append(",,,,,,,");
 
-
-            variantRecord.Append(product.Option1.Name);
+            variantRecord.Append(string.Empty);
             variantRecord.Append(",");
 
-            variantRecord.Append(product.Option1.Value);
+            variantRecord.Append(variant.Option1.Value);
             variantRecord.Append(",");
 
-            variantRecord.Append(product.Option2.Name ?? string.Empty);
+            variantRecord.Append(string.Empty);
             variantRecord.Append(",");
 
-            variantRecord.Append(product.Option2.Value ?? string.Empty);
+            variantRecord.Append(variant.Option2.Value ?? string.Empty);
             variantRecord.Append(",");
 
-            variantRecord.Append(product.Option3.Name ?? string.Empty);
+            variantRecord.Append(string.Empty);
             variantRecord.Append(",");
 
-            variantRecord.Append(product.Option3.Value ?? string.Empty);
+            variantRecord.Append(variant.Option3.Value ?? string.Empty);
             variantRecord.Append(",");
 
-            variantRecord.Append(product.SKU ?? string.Empty);
+            variantRecord.Append(variant.SKU ?? string.Empty);
             variantRecord.Append(",");
 
-            variantRecord.Append(product.Grams?.ToString() ?? string.Empty);
+            variantRecord.Append(variant.Grams?.ToString() ?? string.Empty);
             variantRecord.Append(",");
 
-            variantRecord.Append(product.InventoryTracker);
+            variantRecord.Append(variant.InventoryTracker ?? string.Empty);
             variantRecord.Append(",");
 
-            variantRecord.Append(product.InventoryQuantity.ToString());
+            if (!trackLocationInventory)
+            {
+                variantRecord.Append(variant.InventoryQuantity.ToString());
+                variantRecord.Append(",");
+            }
+
+            variantRecord.Append(variant.InventoryPolicy ?? string.Empty);
             variantRecord.Append(",");
 
-            variantRecord.Append(product.InventoryPolicy);
+            variantRecord.Append(variant.FulfillmentService ?? string.Empty);
             variantRecord.Append(",");
 
-            variantRecord.Append(product.FulfillmentService ?? string.Empty);
+            variantRecord.Append(variant.Price?.ToString() ?? "0");
             variantRecord.Append(",");
 
-            variantRecord.Append(product.Price?.ToString() ?? string.Empty);
+            variantRecord.Append(variant.CompareAtPrice?.ToString() ?? string.Empty);
             variantRecord.Append(",");
 
-            variantRecord.Append(product.CompareAtPrice?.ToString() ?? string.Empty);
+            variantRecord.Append(variant.RequiresShipping.ToString().ToUpper());
             variantRecord.Append(",");
 
-            //TODO - Remove if using multiple locations
-            variantRecord.Append(product.InventoryQuantity);
+            variantRecord.Append(variant.Taxable.ToString().ToUpper());
             variantRecord.Append(",");
 
-            variantRecord.Append(product.RequiresShipping.ToString().ToUpper());
+            variantRecord.Append(variant.Barcode ?? string.Empty);
             variantRecord.Append(",");
 
+            variantRecord.Append(",,,,,,,,,,,,,,,,,,,");
 
-            variantRecord.Append(product.Taxable.ToString().ToUpper());
+            variantRecord.Append(variant.Image ?? string.Empty);
             variantRecord.Append(",");
 
-            variantRecord.Append(product.Barcode ?? string.Empty);
+            variantRecord.Append(variant.WeightUnit ?? string.Empty);
             variantRecord.Append(",");
 
-            variantRecord.Append(",,,");
-
-
-            variantRecord.Append(",,,,,,,,,,,,,,,,");
-          
-
-            variantRecord.Append(product.Image ?? string.Empty);
+            variantRecord.Append(variant.TaxCode ?? string.Empty);
             variantRecord.Append(",");
 
-            variantRecord.Append(product.WeightUnit);
-            variantRecord.Append(",");
-
-            variantRecord.Append(product.TaxCode ?? string.Empty);
-            variantRecord.Append(",");
-
-            variantRecord.Append(product.CostPerItem?.ToString() ?? string.Empty);
+            variantRecord.Append(variant.CostPerItem?.ToString() ?? string.Empty);
 
             return variantRecord.ToString();
         }

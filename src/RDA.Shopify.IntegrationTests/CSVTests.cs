@@ -30,7 +30,7 @@ namespace RDA.Shopify.IntegrationTests
                     Value = "Small"
                 },
                 Price = 19.99m,
-                Published = false,
+                Published = true,
                 RequiresShipping = true,
                 SKU = "2345",
                 Taxable = true,
@@ -38,31 +38,39 @@ namespace RDA.Shopify.IntegrationTests
                 Type = "Type",
                 Vendor = "RDA",
                 WeightUnit = WeigthUnits.Pound
-            }).AddImage(new Image(){ 
-                AltText = "Alt Text",
-                Source = @"http://www.foo.com/img1.jpf"
-            }).AddTag("Tag1").AddTag("Tag2").AddVariant(new Variant() {
+            })
+            .AddImage(new Image(){ 
+                AltText = "Alt Text Image 1",
+                Source = @"https://storageaccountshopia6d8.blob.core.windows.net/artwork/10022.jpg"
+            })
+            .AddImage(new Image()
+            {
+                AltText = "Alt Text Image 2",
+                Source = @"https://storageaccountshopia6d8.blob.core.windows.net/artwork/10281.jpg"
+            })
+            .AddTag("Tag1").AddTag("Tag2")
+            .AddVariant(new Variant() {
                 Option1 = new VariantOption()
                 {
                     Name = "Size",
                     Value = "Medium",
-                },
-                InventoryQuantity = 22
-            }).AddVariant(new Variant()
+                }
+            }, true)
+            .AddVariant(new Variant()
             {
+                Image = "https://storageaccountshopia6d8.blob.core.windows.net/artwork/10958.jpg",
                 Option1 = new VariantOption()
                 {
                     Name = "Size",
                     Value = "Large",
-                },
-                InventoryQuantity = 25
-            });
+                }
+            }, true);
 
-            var result = converter.Convert(inventory);
+            (string productCsv, string inventoryCsv) = converter.Convert(inventory);
 
-            Assert.IsTrue(result != null);
+            Assert.IsTrue(productCsv != null);
 
-            File.WriteAllText(@"C:\Temp\Test.csv", result, Encoding.UTF8);
+            File.WriteAllText(@"C:\Temp\Test.csv", productCsv, Encoding.UTF8);
         }
     }
 }

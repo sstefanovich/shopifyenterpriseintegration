@@ -26,13 +26,21 @@ namespace RDA.Shopify.CSVImport
         public static string Ounce = "oz";
     }
 
+    /// <summary>
+    /// Used to generate a single variant CSV record
+    /// </summary>
     public class Variant
     {
+        public List<LocationInventory> LocationInventories { get; internal set; } = new List<LocationInventory>();
+
         public VariantOption Option1 { get; set; } = new VariantOption(){
             Name = "Title",
             Value = "Default Title"
         };
 
+        /// <summary>
+        /// Uniquely identifies a Product and its variants, required
+        /// </summary>
         public string Handle { get; set; } = string.Empty;
 
         public VariantOption Option2 { get; set; } = new VariantOption();
@@ -49,10 +57,10 @@ namespace RDA.Shopify.CSVImport
         /// </summary>
         public string InventoryTracker { get; set; } = InventoryTrackers.Shopify;
 
-        public int InventoryQuantity { get; set; }
+        public int? InventoryQuantity { get; set; }
 
         /// <summary>
-        /// Need to be deny or continue
+        /// Needs to be deny or continue
         /// </summary>
         public string InventoryPolicy { get; set; } = InventoryPolicies.Deny;
 
@@ -68,12 +76,16 @@ namespace RDA.Shopify.CSVImport
         /// <summary>
         /// Blank also equals false
         /// </summary>
-        public bool RequiresShipping { get; set; }
+        public bool? RequiresShipping { get; set; }
 
-        public bool Taxable { get; set; }
+        public bool? Taxable { get; set; }
 
         public string Barcode { get; set; }
 
+        /// <summary>
+        /// Use Image to assign an image directly to a specific variant. For shared images, use the Images collection on the product
+        /// Shopify will download the image to their CDN during import
+        /// </summary>
         public string Image { get; set; }
 
         /// <summary>
