@@ -5,7 +5,7 @@ using System.Collections.Generic;
 namespace RDA.Shopify.CSVImport
 {
     /// <summary>
-    /// Used to generate a single record for a product import CSV
+    /// Used to generate a single record for a product import CSV 
     /// </summary>
     public class Product : Variant
     {

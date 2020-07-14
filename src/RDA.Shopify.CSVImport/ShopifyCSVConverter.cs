@@ -8,17 +8,23 @@ namespace RDA.Shopify.CSVImport
 {
     public class ShopifyCSVConverter : ICSVConverter
     {
+        private const string productHeaderWithInventory =  @"Handle,Title,Body (HTML),Vendor,Type,Tags,Published,Option1 Name,Option1 Value,Option2 Name,Option2 Value,Option3 Name,Option3 Value,Variant SKU,Variant Grams,Variant Inventory Tracker,Variant Inventory Qty,Variant Inventory Policy,Variant Fulfillment Service,Variant Price,Variant Compare At Price,Variant Requires Shipping,Variant Taxable,Variant Barcode,Image Src,Image Position,Image Alt Text,Gift Card,SEO Title,SEO Description,Google Shopping / Google Product Category,Google Shopping / Gender,Google Shopping / Age Group,Google Shopping / MPN,Google Shopping / AdWords Grouping,Google Shopping / AdWords Labels,Google Shopping / Condition,Google Shopping / Custom Product,Google Shopping / Custom Label 0,Google Shopping / Custom Label 1,Google Shopping / Custom Label 2,Google Shopping / Custom Label 3,Google Shopping / Custom Label 4,Variant Image,Variant Weight Unit,Variant Tax Code,Cost per item";
+        private const string productHeaderWithoutInventory = @"Handle,Title,Body (HTML),Vendor,Type,Tags,Published,Option1 Name,Option1 Value,Option2 Name,Option2 Value,Option3 Name,Option3 Value,Variant SKU,Variant Grams,Variant Inventory Tracker,Variant Inventory Policy,Variant Fulfillment Service,Variant Price,Variant Compare At Price,Variant Requires Shipping,Variant Taxable,Variant Barcode,Image Src,Image Position,Image Alt Text,Gift Card,SEO Title,SEO Description,Google Shopping / Google Product Category,Google Shopping / Gender,Google Shopping / Age Group,Google Shopping / MPN,Google Shopping / AdWords Grouping,Google Shopping / AdWords Labels,Google Shopping / Condition,Google Shopping / Custom Product,Google Shopping / Custom Label 0,Google Shopping / Custom Label 1,Google Shopping / Custom Label 2,Google Shopping / Custom Label 3,Google Shopping / Custom Label 4,Variant Image,Variant Weight Unit,Variant Tax Code,Cost per item";
+
         public (string products, string inventory) Convert(ProductInventory inventory)
         {
             var productResult = new StringBuilder();
             var inventoryResult = new StringBuilder();
             var locationNames = new List<string>();
 
-            //Add the headers first, they must appear in this order
-            productResult.AppendLine(@"Handle,Title,Body (HTML),Vendor,Type,Tags,Published,Option1 Name,Option1 Value,Option2 Name,Option2 Value,Option3 Name,Option3 Value,Variant SKU,Variant Grams,Variant Inventory Tracker,Variant Inventory Qty,Variant Inventory Policy,Variant Fulfillment Service,Variant Price,Variant Compare At Price,Variant Requires Shipping,Variant Taxable,Variant Barcode,Image Src,Image Position,Image Alt Text,Gift Card,SEO Title,SEO Description,Google Shopping / Google Product Category,Google Shopping / Gender,Google Shopping / Age Group,Google Shopping / MPN,Google Shopping / AdWords Grouping,Google Shopping / AdWords Labels,Google Shopping / Condition,Google Shopping / Custom Product,Google Shopping / Custom Label 0,Google Shopping / Custom Label 1,Google Shopping / Custom Label 2,Google Shopping / Custom Label 3,Google Shopping / Custom Label 4,Variant Image,Variant Weight Unit,Variant Tax Code,Cost per item");
-
             //If any product or variant has inventory locations, then they all should
             bool trackLocationInventory = inventory.Products.Where(p => p.LocationInventories.Count > 0).Any() || inventory.Products.Where(p => p.Variants.Where(v => v.LocationInventories.Count > 0).Count() > 0).Any();
+
+            //If inventory is by location, then quantity goes in the inventory file
+            if (trackLocationInventory)
+                productResult.AppendLine(productHeaderWithoutInventory);
+            else
+                productResult.AppendLine(productHeaderWithInventory);
 
             foreach (var product in inventory.Products)
             {
@@ -33,12 +39,12 @@ namespace RDA.Shopify.CSVImport
                 //The first image goes on the main product row then each additional gets a row
                 for (int imageIndex = 1; imageIndex < product.Images.Count; imageIndex++)
                 {
-                    productResult.AppendLine(BuildImage(product, product.Images[imageIndex], imageIndex + 1));
+                    productResult.AppendLine(BuildImage(product, product.Images[imageIndex], imageIndex + 1, trackLocationInventory));
                 }
 
                 foreach (var variant in product.Variants)
                 {
-                    foreach (var locationInventory in product.LocationInventories)
+                    foreach (var locationInventory in variant.LocationInventories)
                     {
                         if (!locationNames.Contains(locationInventory.LocationName))
                             locationNames.Add(locationInventory.LocationName);
@@ -51,7 +57,7 @@ namespace RDA.Shopify.CSVImport
             if (trackLocationInventory && locationNames.Count > 0)
             {
                 //We need to get all the location names, each becomes a column
-                inventoryResult.AppendLine($@"Handle,Title,Option1 Name,Option1 Value,Option2 Name,Option2 Value,Option3 Name,Option3 Value{string.Join(",", locationNames)}");
+                inventoryResult.AppendLine($@"Handle,Title,Option1 Name,Option1 Value,Option2 Name,Option2 Value,Option3 Name,Option3 Value,SKU,{string.Join(",", locationNames)}");
 
                 foreach (var product in inventory.Products)
                 {
@@ -64,7 +70,8 @@ namespace RDA.Shopify.CSVImport
                 }
             }
 
-            return (productResult.ToString(), inventoryResult.ToString());
+            //Trim the newline off the last line
+            return (productResult.ToString().TrimEnd('\r', '\n'), inventoryResult.ToString().TrimEnd('\r', '\n'));
         }
 
         private string BuildInventory(Product product, Variant variant, List<string> locationNames)
@@ -101,7 +108,6 @@ namespace RDA.Shopify.CSVImport
                 inventoryRecord.Append(",");
 
                 inventoryRecord.Append(product.SKU ?? string.Empty);
-                inventoryRecord.Append(",");
             }
             else
             {
@@ -299,13 +305,16 @@ namespace RDA.Shopify.CSVImport
             return productRecord.ToString();
         }
 
-        private string BuildImage(Product product, Image image, int position)
+        private string BuildImage(Product product, Image image, int position, bool trackLocationInventory)
         {
             var imageRecord = new StringBuilder();
 
             imageRecord.Append(product.Handle);
-            imageRecord.Append(",,,,,,,,,,,,,,,,,,,,,,,,");
 
+            if (trackLocationInventory)
+                imageRecord.Append(",,,,,,,,,,,,,,,,,,,,,,,");
+            else
+                imageRecord.Append(",,,,,,,,,,,,,,,,,,,,,,,,");
 
             imageRecord.Append(image.Source);
             imageRecord.Append(",");

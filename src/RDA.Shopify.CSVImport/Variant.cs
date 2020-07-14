@@ -26,12 +26,20 @@ namespace RDA.Shopify.CSVImport
         public static string Ounce = "oz";
     }
 
+    public static class FufillmentServices
+    {
+        public static string Manual = "manual";
+        public static string ShipWire = "shipwire";
+        public static string Webgistix = "webgistix";
+        public static string Amazon = "amazon_marketplace_web";
+    }
+
     /// <summary>
     /// Used to generate a single variant CSV record
     /// </summary>
     public class Variant
     {
-        public List<LocationInventory> LocationInventories { get; internal set; } = new List<LocationInventory>();
+        public List<LocationInventory> LocationInventories { get; set; } = new List<LocationInventory>();
 
         public VariantOption Option1 { get; set; } = new VariantOption(){
             Name = "Title",
