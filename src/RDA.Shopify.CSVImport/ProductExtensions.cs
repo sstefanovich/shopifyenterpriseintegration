@@ -92,8 +92,24 @@ namespace RDA.Shopify.CSVImport
         /// <returns>The Product</returns>
         public static Product AddTag(this Product product, string tag)
         {
-            if (! product.Tags.Contains(tag))
-                product.Tags.Add(tag);
+            var parsedTag = tag.Replace(",", " ");
+
+            if (! product.Tags.Contains(parsedTag))
+                product.Tags.Add(parsedTag);
+
+            return product;
+        }
+
+        /// <summary>
+        /// Adds a tag to a product
+        /// </summary>
+        /// <param name="product">The product the tag will be added to</param>
+        /// <param name="tags">The tags to add</param>
+        /// <returns>The Product</returns>
+        public static Product AddTags(this Product product, IEnumerable<string> tags)
+        {
+            foreach (var tag in tags)
+                AddTag(product, tag);
 
             return product;
         }
