@@ -10,6 +10,7 @@ namespace RDA.Shopify.CSVImport
         public static string AmazonMarketPlace = "amazon_marketplace_web";
         public static string Shipwire = "shipwire";
         public static string Shopify = "shopify";
+        public static string NotTracked = string.Empty;
     }
 
     public static class InventoryPolicies
